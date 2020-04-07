@@ -1,10 +1,6 @@
 import pandas as pd
-import math
-import os.path
 from binance.client import Client
-from datetime import datetime
 import time
-from dateutil import parser
 import keys
 from pathlib import Path
 
