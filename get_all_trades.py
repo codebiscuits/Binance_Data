@@ -13,6 +13,7 @@ request_limit = limits[0].get('limit')
 
 i_range = 10
 j_range = 20
+s = 1 # just declaring this here to avoid calling before declaring later
 
 for i in range(i_range):
     big_start = time.perf_counter()
@@ -24,14 +25,20 @@ for i in range(i_range):
     last_old_trade = all_trades.iloc[-1, 0]
     for j in range(j_range):
         start = time.perf_counter()
-        print(f'Major loop {j+1} of {j_range}')
+        # print(f'Major loop {j+1} of {j_range}')
         if j == 0:
             k_range = request_limit-1
         else:
             k_range = request_limit
         for k in range(k_range):
-            if (k+1) % 200 == 0:
-                print(f'Minor loop: {k + 1}')
+            # if (k+1) % 200 == 0:
+                # print(f'Minor loop: {k + 1}')
+            total_loops = j_range * request_limit
+            current_loop = (j+1) * k
+            r = round((current_loop / total_loops) * 100)
+            if r-s:
+                print(f'{r}% completed')
+            s = round((current_loop / total_loops) * 100)
             trades = client.get_historical_trades(symbol='BTCUSDT', limit=1000, fromId=last_old_trade+1)
             new_trades = pd.DataFrame(trades, columns=['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch'])
             all_trades = all_trades.append(new_trades, ignore_index=True, sort=True)
@@ -54,3 +61,6 @@ for i in range(i_range):
 
 # trades = client.get_historical_trades(symbol='BTCUSDT', limit=1)
 # print(trades[0].get('id'))
+# TODO use this most recent trade id to write an automatic stop into the loop
+
+# TODO add some code to check the data folder for files already created
