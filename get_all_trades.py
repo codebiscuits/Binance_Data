@@ -38,7 +38,7 @@ for i in range(i_range):
             total_loops = j_range * request_limit
             current_loop = (j*k_range) + k
             r = round((current_loop / total_loops) * 100)
-            if r-s:
+            if r-s: # if current percentage is same as previous percentage, this will eval to false and be skipped
                 print(f'{r}% completed')
             s = round((current_loop / total_loops) * 100)
             trades = client.get_historical_trades(symbol='BTCUSDT', limit=1000, fromId=last_old_trade+1)
