@@ -7,6 +7,7 @@ from pathlib import Path
 client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
 pair = 'BTCUSDT'
 
+### get api request limit from binance to ensure it isn't being exceeded by this program
 info = client.get_exchange_info()
 limits = info.get('rateLimits')
 request_limit = limits[0].get('limit')
@@ -16,6 +17,7 @@ j_range = 20
 s = 1 # just declaring this here to avoid calling before declaring later
 
 for i in range(i_range):
+    ### this loop determines how many files are produced. each one ends up ~2GB
     big_start = time.perf_counter()
     print(f'Downloading trades for file {i} at {time.gmtime()[3]}:{time.gmtime()[4]}')
     ### first define range of trade IDs included in this file
@@ -24,6 +26,7 @@ for i in range(i_range):
     all_trades = pd.DataFrame(trades, columns=['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch'])
     last_old_trade = all_trades.iloc[-1, 0]
     for j in range(j_range):
+        ### this middle loop multiplies the iterations of the inner loop to make it up to a full download ~2GB
         start = time.perf_counter()
         print(f'Major loop {j+1} of {j_range}')
         if j == 0:
@@ -31,8 +34,7 @@ for i in range(i_range):
         else:
             k_range = request_limit
         for k in range(k_range):
-            # if (k+1) % 200 == 0:
-                # print(f'Minor loop: {k + 1}')
+            ### this inner loop is rate limited by the middle loop to prevent too many api calls per minute
             total_loops = j_range * request_limit
             current_loop = (j*k_range) + k
             r = round((current_loop / total_loops) * 100)
