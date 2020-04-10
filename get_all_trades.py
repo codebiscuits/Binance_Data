@@ -4,7 +4,7 @@ import time
 import keys
 from pathlib import Path
 
-client = Client(api_key=keys.Pkey, api_secret=keys.Skey, , {"verify": False, "timeout": 20})
+client = Client(api_key=keys.Pkey, api_secret=keys.Skey, {"verify": False, "timeout": 20})
 pair = 'BTCUSDT'
 
 ### get api request limit from binance to ensure it isn't being exceeded by this program
