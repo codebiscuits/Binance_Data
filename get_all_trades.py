@@ -41,6 +41,7 @@ for i in range(i_range):
             if r-s: # if current percentage is same as previous percentage, this will eval to false and be skipped
                 print(f'{r}% completed')
             s = round((current_loop / total_loops) * 100)
+            # if the ReadTimeout problem persists, the following line could be put in a try/except clause within a while loop to keep trying it until it works
             trades = client.get_historical_trades(symbol='BTCUSDT', limit=1000, fromId=last_old_trade+1)
             new_trades = pd.DataFrame(trades, columns=['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch'])
             all_trades = all_trades.append(new_trades, ignore_index=True, sort=True)
