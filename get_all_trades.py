@@ -6,7 +6,7 @@ from pathlib import Path
 import math
 
 client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
-pair = 'ETHUSDT'
+pair = 'BNBUSDT'
 
 ### get api request limit from binance to ensure it isn't being exceeded by this program
 info = client.get_exchange_info()
@@ -25,10 +25,13 @@ requests_per_file = request_limit * j_range
 i_range = math.ceil(total_requests/requests_per_file)
 i_list = list(range(i_range))
 ### remove from the list those which have already been completed
-stored_files_path = Path(f'Data/trades/')
-files_list = stored_files_path.glob('*.csv')
+stored_files_path = Path(f'Data/trades/{pair}/')
+files_list = stored_files_path.glob(f'{pair}_*.csv')
 done_list = [file.stem for file in files_list]
-done_list = [int(entry[-1]) for entry in done_list]
+print(done_list)
+
+done_list = [int(entry.split('_')[1]) for entry in done_list]
+
 new_i_list = [i for i in i_list if i not in done_list]
 i_list = new_i_list
 print(f'Files in list: {i_list}')
@@ -80,7 +83,7 @@ for i in i_list:
         # print(f'Loop time: {loop_time//60}m {loop_time%60}s, Including sleep: {total_loop_time//60}m {total_loop_time%60}s')
         # print('-' * 40)
         j += 1
-    file_path = Path(f'Data/trades/{pair}_{i}.csv')
+    file_path = Path(f'Data/trades/{pair}/{pair}_{i}.csv')
     all_trades.to_csv(file_path)
     big_end = time.perf_counter()
     big_time = round(big_end - big_start)
