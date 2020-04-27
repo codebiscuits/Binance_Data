@@ -5,6 +5,9 @@ import keys
 from pathlib import Path
 import math
 
+#TODO Turn the whole thing into a function or something so that
+# i can for-loop the whole process for every pair i want to download
+
 start = time.perf_counter()
 
 client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
@@ -62,6 +65,7 @@ new_i_list = [i for i in i_list if i not in done_list]
 i_list = new_i_list
 print(f'Files in list: {i_list}')
 
+
 def dl_loop(pair, file_cont=False):
     s = 1 # part of the percentage counter in the inner loop
     for i in i_list:
@@ -93,6 +97,9 @@ def dl_loop(pair, file_cont=False):
                 k_range = request_limit
             while trade_count < last and k < k_range:
                 ### this inner loop is rate limited by the middle loop to prevent too many api calls per minute
+                #TODO Percentage progress meter is not quite right yet, it needs to differentiate between files
+                # that are being filled from beginning to end, files that are being filled from half-way through
+                # to the end, beginning to half-way through, and part-way through to part-way through.
                 total_trades = last - start_id          # this line and the one below track progress through a resumed download
                 progress = trade_count - start_id
                 total_loops = j_range * request_limit   # this line and the one below track progress through a download from scratch
@@ -113,6 +120,8 @@ def dl_loop(pair, file_cont=False):
                 j_loop_trades = j_loop_trades.append(new_trades, ignore_index=True, sort=True)
                 k += 1
                 trade_count += 1000
+                #TODO could try re-assigning 'last' here, if it doesn't cause an issue, it would allow the download to
+                # continue right up to the latest trades that have happened since the download started.
             all_trades = all_trades.append(j_loop_trades, ignore_index=True, sort=True)
             end = time.perf_counter()
             loop_time = round(end - start)
@@ -144,13 +153,6 @@ else:
         print(f'all new trades will fit in current file, downloading id {last_id+1} to id {last}')
     if last > to_id:
         print('more than one file needed to fit all new trades, downloading id {last_id+1} to id {last}')
-    # old_trades = pd.read_csv(Path(f'Data/trades/{pair}/{pair}_{i_list[0]}.csv'), usecols=['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch'])
-    #     # trades = client.get_historical_trades(symbol=pair, fromId=last_id+1, requests_params={'timeout': 60})  # returns a list of dictionaries
-    #     # new_trades = pd.DataFrame(trades, columns=['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch'])
-    #     # print(old_trades.tail(3))
-    #     # print(new_trades.tail(3))
-    #     # old_trades = old_trades.append(new_trades, ignore_index=True, sort=True)
-    #     # # old_trades.to_csv(Path(f'Data/trades/{pair}/{pair}_{i_list[0]}.csv'))
     dl_loop(pair, True)
 
 end = time.perf_counter()
