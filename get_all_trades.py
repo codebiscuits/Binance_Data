@@ -11,7 +11,7 @@ import math
 start = time.perf_counter()
 
 client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
-pair = 'BNBUSDT'
+pair = 'ETHUSDT'
 j_range = 5 # number of iterations for middle for-loop, ~100MB per iteration, currently 20 for btc, 5 for everything else
 cols = ['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch']
 
@@ -65,6 +65,11 @@ new_i_list = [i for i in i_list if i not in done_list]
 i_list = new_i_list
 print(f'Files in list: {i_list}')
 
+
+# TODO one scenario i haven't allowed for in the logic is if some files already exist so download is picking up in the
+#  middle, but it has to start at the exact beginning of the latest file because the last download had an error and
+#  lost the half-way file it was working on. i could either fix this by changing the logic by which it starts
+#  downloading, or i could add that try/except clause to make sure no downloads stop due to errors
 
 def dl_loop(pair, file_cont=False):
     s = 1 # part of the percentage counter in the inner loop
