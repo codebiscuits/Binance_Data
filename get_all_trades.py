@@ -5,81 +5,86 @@ import keys
 from pathlib import Path
 import math
 
-#TODO Turn the whole thing into a function or something so that
-# i can for-loop the whole process for every pair i want to download
+def get_all_trades(pair):
+    start = time.perf_counter()
+    client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
+    j_range = 5 # number of iterations for middle for-loop, ~100MB per iteration, currently 5 for everything
+    cols = ['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch']
 
-start = time.perf_counter()
+    ### get api request limit from binance to ensure it isn't being exceeded by this program
+    info = client.get_exchange_info()
+    limits = info.get('rateLimits')
+    request_limit = limits[0].get('limit') # this is the number used by the inner-most for-loop for its iterations
 
-client = Client(api_key=keys.Pkey, api_secret=keys.Skey)
-pair = 'BTCUSDT'
-j_range = 5 # number of iterations for middle for-loop, ~100MB per iteration, currently 20 for btc, 5 for everything else
-cols = ['id', 'price', 'qty', 'quoteQty', 'time', 'isBuyerMaker', 'isBestMatch']
+    ### get id of most recent trade on binance
+    recent = client.get_historical_trades(symbol=pair, limit=1)
+    last = recent[0].get('id') # last trade id in the entire list of trades available to download
+    print(f'latest id on binance: {last}')
 
-### get api request limit from binance to ensure it isn't being exceeded by this program
-info = client.get_exchange_info()
-limits = info.get('rateLimits')
-request_limit = limits[0].get('limit') # this is the number used by the inner-most for-loop for its iterations
+    ### calculate how many files i should end up with
+    requests_per_file = request_limit * j_range
+    trades_per_file = requests_per_file * 1000
+    total_requests = last // 1000
+    i_range = math.ceil(total_requests/requests_per_file)
+    i_list = list(range(i_range))
 
-### get id of most recent trade on binance
-recent = client.get_historical_trades(symbol=pair, limit=1)
-last = recent[0].get('id') # last trade id in the entire list of trades available to download
-print(f'latest id on binance: {last}')
+    ### verify downloaded files have correct trade ranges and get id for last downloaded trade
+    stored_files_path = Path(f'Data/trades/{pair}/')
+    files_list = list(stored_files_path.glob(f'{pair}*.csv'))
+    print(f'verifying {pair} files')
+    completed = 0
+    done_list = []
+    for i in range(len(files_list)):
+        file_path = Path(f'Data/trades/{pair}/{pair}_{i}.csv')
+        from_id = i * j_range * request_limit * 1000
+        to_id = ((i+1) * j_range * request_limit * 1000) - 1
+        df = pd.read_csv(file_path)
+        first_id = df.iloc[0, 1]
+        last_id = df.iloc[-1, 1]
+        if from_id == first_id and to_id == last_id and last_id - first_id == trades_per_file -1:
+            print(f'file {i} complete')
+            completed += 1
+            done_list.append(i)
+        elif from_id != first_id and to_id == last_id:
+            print(f'file {i} not correct, should start {from_id} but started {first_id}')
+        elif from_id == first_id and to_id > last_id:
+            print(f'file {i} incomplete, should end {to_id} but ended {last_id}')
+        else:
+            print(f'file {i} should start {from_id} but started {first_id}, should end {to_id} but ended {last_id}')
+        df = ''
+    print('-' * 40)
 
-### calculate how many files i should end up with
-requests_per_file = request_limit * j_range
-trades_per_file = requests_per_file * 1000
-total_requests = last // 1000
-i_range = math.ceil(total_requests/requests_per_file)
-i_list = list(range(i_range))
+    ### remove from the list those which have already been completed
+    new_i_list = [i for i in i_list if i not in done_list]
+    i_list = new_i_list
+    print(f'Files in list: {i_list}')
 
-### verify downloaded files have correct trade ranges and get id for last downloaded trade
-stored_files_path = Path(f'Data/trades/{pair}/')
-files_list = list(stored_files_path.glob(f'{pair}*.csv'))
-print(f'verifying {pair} files')
-completed = 0
-done_list = []
-for i in range(len(files_list)):
-    file_path = Path(f'Data/trades/{pair}/{pair}_{i}.csv')
-    from_id = i * j_range * request_limit * 1000
-    to_id = ((i+1) * j_range * request_limit * 1000) - 1
-    df = pd.read_csv(file_path)
-    first_id = df.iloc[0, 1]
-    last_id = df.iloc[-1, 1]
-    if from_id == first_id and to_id == last_id and last_id - first_id == trades_per_file -1:
-        print(f'file {i} complete')
-        completed += 1
-        done_list.append(i)
-    elif from_id != first_id and to_id == last_id:
-        print(f'file {i} not correct, should start {from_id} but started {first_id}')
-    elif from_id == first_id and to_id > last_id:
-        print(f'file {i} incomplete, should end {to_id} but ended {last_id}')
+    if len(files_list) == 0 or to_id == last_id:
+        print(f'downloading all available trades for {pair}')
+        file_cont=False
     else:
-        print(f'file {i} should start {from_id} but started {first_id}, should end {to_id} but ended {last_id}')
-    df = ''
-print('-' * 40)
+        print(f'{last-last_id} trades to download')
+        if last < to_id:
+            print(f'all new trades will fit in current file, downloading id {last_id+1} to id {last}')
+        if last > to_id:
+            print('more than one file needed to fit all new trades, downloading id {last_id+1} to id {last}')
+        file_cont = True
 
-### remove from the list those which have already been completed
-# done_list = [file.stem for file in files_list]
-# done_list = [int(entry[-1]) for entry in done_list]
-new_i_list = [i for i in i_list if i not in done_list]
-i_list = new_i_list
-print(f'Files in list: {i_list}')
+    ### download loop
 
-
-def dl_loop(pair, file_cont=False):
     s = 1 # part of the percentage counter in the inner loop
     for i in i_list:
         j = 0 # initialise counter for while loop
         ### this loop determines how many files are produced. each one ends up ~2GB
         big_start = time.perf_counter()
-        print(f'Starting file {i} at {time.ctime()[11:-8]}')
         ### define first trade ID to download for this file
         if file_cont:
-            print(f'continuing file {i}')
+            print(f'continuing file {i} at {time.ctime()[11:-8]}')
             all_trades = pd.read_csv(Path(f'Data/trades/{pair}/{pair}_{i}.csv'), usecols=cols)
             trade_count = all_trades.iloc[-1, 0]
             start_id = trade_count + 1
         else:
+            print(f'Starting file {i} at {time.ctime()[11:-8]}')
             start_id = i*j_range*request_limit*1000 # using short-circuiting to ignore start_id if 0 and ignore range otherwise
             trades = client.get_historical_trades(symbol=pair, limit=1000, fromId=start_id, requests_params={'timeout': 60})  # returns a list of dictionaries
             all_trades = pd.DataFrame(trades, columns=cols)
@@ -90,7 +95,6 @@ def dl_loop(pair, file_cont=False):
             ### this middle loop multiplies the iterations of the inner loop to make it up to a full download ~2GB
             start = time.perf_counter()
             j_loop_trades = pd.DataFrame(columns=cols)
-            # print(f'Major loop {j+1} of {j_range}')
             if j == 0:
                 k_range = request_limit-1
             else:
@@ -109,7 +113,7 @@ def dl_loop(pair, file_cont=False):
                 else:
                     r = round((current_loop / total_loops) * 100)   # download from scratch
                 if (r-s) and (r % 10 == 0): # if current percentage is same as previous percentage, this will eval to false and be skipped
-                    print(f'{r}% completed')
+                    print(f'{r}% completed, trade_count: {trade_count}')
                 if file_cont:
                     s = round((progress / total_trades) * 100)      # resumed download
                 else:
@@ -122,13 +126,14 @@ def dl_loop(pair, file_cont=False):
                 trade_count += 1000
                 #TODO could try re-assigning 'last' here, if it doesn't cause an issue, it would allow the download to
                 # continue right up to the latest trades that have happened since the download started.
+                last = recent[0].get('id')  # last trade id in the entire list of trades available to download
             all_trades = all_trades.append(j_loop_trades, ignore_index=True, sort=True)
             end = time.perf_counter()
             loop_time = round(end - start)
             if loop_time < 61:
                 time.sleep(61 - loop_time)
-            inclusive_end = time.perf_counter()
-            total_loop_time = round(inclusive_end - start)
+            # inclusive_end = time.perf_counter()
+            # total_loop_time = round(inclusive_end - start)
             # download_rate = k_range / (total_loop_time / 60)
             # print(f'Download rate was {round((download_rate / request_limit) * 100)}% of request limit.')
             # print(all_trades.iloc[-1])
@@ -143,19 +148,9 @@ def dl_loop(pair, file_cont=False):
         print('-' * 40)
         file_cont = False  # reset file_cont in case there are more files to download from the beginning
 
+    end = time.perf_counter()
+    total_mins = round((end - start) / 60)
+    print(f'Download completed, time taken: {total_mins} minutes')
 
-if len(files_list) == 0 or to_id == last_id:    # if there are no files in the folder or if the last downloaded trade has
-                                                # the same id as the end of the last file
-    print(f'downloading all available trades for {pair}')
-    dl_loop(pair)
-else:
-    print(f'{last-last_id} trades to download')
-    if last < to_id:
-        print(f'all new trades will fit in current file, downloading id {last_id+1} to id {last}')
-    if last > to_id:
-        print('more than one file needed to fit all new trades, downloading id {last_id+1} to id {last}')
-    dl_loop(pair, True)
-
-end = time.perf_counter()
-total_mins = round((end - start) / 60)
-print(f'Download completed, time taken: {total_mins} minutes')
+for i in ['BNBUSDT', 'BTCUSDT']:
+    get_all_trades(i)

@@ -3,14 +3,19 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-data = pd.read_csv(Path('Data/trades/ETHUSDT_0.csv'), usecols=['id', 'price', 'quoteQty', 'time'])
+pair = 'BNBUSDT'
 
-id_arr = list(data['id'])
-price_arr = list(data['price'])
-qty_arr = list(data['quoteQty'])
-time_arr = list(data['time'])
+data = pd.read_csv(Path(f'Data/trades/{pair}/{pair}_0.csv'), usecols=[
+    # 'id',
+    'price',
+    # 'quoteQty',
+    # 'time'
+    ])
 
-groups = {} # when trades are grouped together, the start and end indexes can be stored in this dictionary
+data['delta'] = data['price'] - data['price'].shift(1)
+data['delta'][0] = 0
+
+bricks = []
 
 print(data.head())
 
