@@ -47,9 +47,14 @@ def calc_stats(signals):
 
     profit = (100 * (cash - startcash) / startcash)
     # print(f'Settings: {name}, {len(equity_curve)} trades, Profit: {profit:.6}%')
-    eq_series = [eq_curve[i] / eq_curve[i-1] for i in range(1, len(eq_curve))]
-    eq_std = statistics.stdev(eq_series)
-    sqn = math.sqrt(len(eq_curve)) * statistics.mean(eq_series) / statistics.stdev(eq_series)
+    eq_series = [(eq_curve[i]-eq_curve[i-1]) / eq_curve[i-1] for i in range(1, len(eq_curve))]
+    if len(eq_series) > 1: # to avoid StatisticsError: variance requires at least two data points
+        eq_std = statistics.stdev(eq_series)
+        sqn = math.sqrt(len(eq_curve)) * statistics.mean(eq_series) / statistics.stdev(eq_series)
+    else:
+        eq_std = 0
+        sqn = -1
+
 
     return profit, eq_std, len(eq_curve), sqn
 
@@ -60,13 +65,13 @@ std_dev_list = []
 num_trades_list = []
 sqn_list = []
 
-x_range = (100, 400, 3)
+x_range = (100, 600, 30)
 signals = {}
 test = 0
-z_list = [0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]
+z_list = [round(1 / i**2, 4) for i in range(10, 0, -1)] # [0.01, 0.0123, 0.0156, 0.0204, 0.0278, 0.04, 0.0625, 0.1111, 0.25, 1.0]
 for z in z_list:
     for x in range(x_range[0], x_range[1], x_range[2]):
-        test_total = (((x_range[1] - x_range[0]) - 1) // x_range[2]) * len(z_list)
+        test_total = math.ceil((x_range[1] - x_range[0]) / x_range[2]) * len(z_list)
         tr_period = (x**2)+10
         data['tr'] = (data['price'].rolling(tr_period).max() - data['price'].rolling(tr_period).min()) / data['price'] # relative true range
         data = data[tr_period:]
@@ -133,7 +138,7 @@ for z in z_list:
         signals_list = sorted(both, key=lambda x: x[0]) # sort by values from x_positive/x_negative (trade IDs)
         pnl, std_dev, num_trades, sqn = calc_stats(signals_list)
         tr_list.append(tr_period)
-        atr_list.append(atr_period)
+        atr_list.append(z)
         pnl_list.append(pnl)
         std_dev_list.append(std_dev)
         num_trades_list.append(num_trades)
@@ -147,7 +152,7 @@ for z in z_list:
 
 
 all_results = zip(tr_list, atr_list, pnl_list, num_trades_list, sqn_list)
-results_df = pd.DataFrame(all_results, columns=['tr period', 'atr period', 'pnl', 'num trades', 'sqn'])
+results_df = pd.DataFrame(all_results, columns=['tr period', 'atr mult', 'pnl', 'num trades', 'sqn'])
 print(results_df.head())
 results_path = Path(f'Data/renko_idea_1_results/{pair}.csv')
 results_df.to_csv(results_path)
